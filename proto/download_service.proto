@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package download;
+
+// Interface exported by the server
+service Download {
+  rpc Download(DownloadRequest) returns (stream DownloadResponse) {}
+}
+
+// DownloadRequest is the request type of the download.
+message DownloadRequest {
+   // File key to download from S3
+   string key = 1;
+
+   // The bucket to download file from
+   string bucket = 2;
+}
+
+// DownloadResponse is the response type of the download.
+message DownloadResponse {
+  // Raw File bytes
+  bytes file = 1;
+}
