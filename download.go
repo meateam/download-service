@@ -10,26 +10,12 @@ import (
 )
 
 const (
-	chunkSize int = 10 << 20
+	chunkSize int64 = 5 << 20 // 5MB per part
 )
 
 // DownloadService is a structure used for downloading files from S3
 type DownloadService struct {
 	s3Client *s3.S3
-}
-
-// StreamWriterAt is a structure for streaming slice of bytes to RPC client.
-type StreamWriterAt struct {
-	stream pb.Download_DownloadServer
-}
-
-// WriteAt streams buffer to a RPC client stream.
-func (w StreamWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
-	if err := w.stream.Send(&pb.DownloadResponse{File: p}); err != nil {
-		return 0, fmt.Errorf("failed sending buffer to client: %v", err)
-	}
-
-	return len(p), nil
 }
 
 // Download is the request to download a file from s3.
@@ -39,7 +25,7 @@ func (w StreamWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
 func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_DownloadServer) error {
 	// Initialize downloader from client.
 	downloader := s3manager.NewDownloaderWithClient(s.s3Client, func(d *s3manager.Downloader) {
-		d.PartSize = 5 << 20 // 5MB per part
+		d.PartSize = chunkSize
 	})
 
 	// fetch key and bucket from the request and check it's validity.
