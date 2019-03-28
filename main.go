@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"google.golang.org/grpc"
 )
 
@@ -29,14 +29,14 @@ func main() {
 		S3ForcePathStyle: aws.Bool(true),
 	}
 	newSession := session.New(s3Config)
-	s3Downloader := s3manager.NewDownloader(newSession)
+	s3Client := s3.New(newSession)
 	lis, err := net.Listen("tcp", ":"+tcpPort)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	grpcServer := grpc.NewServer(grpc.MaxRecvMsgSize(10 << 20))
-	server := &DownloadService{s3Downloader: s3Downloader}
+	server := &DownloadService{s3Client: s3Client}
 	pb.RegisterDownloadServer(grpcServer, server)
 	grpcServer.Serve(lis)
 }

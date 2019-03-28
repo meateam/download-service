@@ -2,13 +2,34 @@ package main
 
 import (
 	pb "download-service/proto"
+	"fmt"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+)
+
+const (
+	chunkSize int = 10 << 20
 )
 
 // DownloadService is a structure used for downloading files from S3
 type DownloadService struct {
-	s3Downloader *s3manager.Downloader
+	s3Client *s3.S3
+}
+
+// StreamWriterAt is a structure for streaming slice of bytes to RPC client.
+type StreamWriterAt struct {
+	stream pb.Download_DownloadServer
+}
+
+// WriteAt streams buffer to a RPC client stream.
+func (w StreamWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
+	if err := w.stream.Send(&pb.DownloadResponse{File: p}); err != nil {
+		return 0, fmt.Errorf("failed sending buffer to client: %v", err)
+	}
+
+	return len(p), nil
 }
 
 // Download is the request to download a file from s3.
@@ -16,5 +37,54 @@ type DownloadService struct {
 // Responds with a stream of the file bytes in chunks.
 // TODO:
 func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_DownloadServer) error {
+	// Initialize downloader from client.
+	downloader := s3manager.NewDownloaderWithClient(s.s3Client, func(d *s3manager.Downloader) {
+		d.PartSize = 5 << 20 // 5MB per part
+	})
+
+	// fetch key and bucket from the request and check it's validity.
+	key := req.GetKey()
+	bucket := req.GetBucket()
+	if key == "" {
+		return fmt.Errorf("key is required")
+	}
+
+	if bucket == "" {
+		return fmt.Errorf("bucket is required")
+	}
+
+	// Get the object's length.
+	fileDetails, err := s.s3Client.HeadObjectWithContext(
+		stream.Context(),
+		&s3.HeadObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(key),
+		})
+	if err != nil {
+		return fmt.Errorf("failed to download file from %s/%s: %v", bucket, key, err)
+	}
+
+	// Calculate how many parts there are to download.
+	totalParts := *fileDetails.ContentLength / downloader.PartSize
+	if *fileDetails.ContentLength%downloader.PartSize > 0 {
+		totalParts++
+	}
+
+	// Iterate over all of the parts, download each part and stream it to the client.
+	for currentPart := int64(1); currentPart <= totalParts; currentPart++ {
+		buf := aws.NewWriteAtBuffer(make([]byte, 0, int(downloader.PartSize)))
+		_, err := downloader.DownloadWithContext(
+			stream.Context(),
+			buf,
+			&s3.GetObjectInput{Key: aws.String(key), Bucket: aws.String(bucket), PartNumber: aws.Int64(currentPart)},
+		)
+
+		if err != nil {
+			return fmt.Errorf("failed to download file from %s/%s: %v", bucket, key, err)
+		}
+
+		stream.Send(&pb.DownloadResponse{File: buf.Bytes()})
+	}
+
 	return nil
 }
