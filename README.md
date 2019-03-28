@@ -1,6 +1,6 @@
 # Download-Service
 
-S3 file Upload Service
+S3 file Download Service
 
 ## Compile proto
 
