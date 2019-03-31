@@ -21,7 +21,6 @@ type DownloadService struct {
 // Download is the request to download a file from s3.
 // It recieves a req for a file.
 // Responds with a stream of the file bytes in chunks.
-// TODO:
 func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_DownloadServer) error {
 	// Initialize downloader from client.
 	downloader := s3manager.NewDownloaderWithClient(s.s3Client, func(d *s3manager.Downloader) {
