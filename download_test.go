@@ -30,6 +30,7 @@ var s3Client *s3.S3
 var lis *bufconn.Listener
 var testbucket = "testbucket"
 var testkey = "test.txt"
+var file = make([]byte, 2<<20)
 
 func init() {
 	// Wait until minio is up - delete it when stop using compose and start CI.
@@ -64,7 +65,7 @@ func init() {
 		}
 	}()
 
-	file := make([]byte, 2<<20)
+	file = make([]byte, 2<<20)
 	rand.Read(file)
 
 	s3Client.CreateBucket(&s3.CreateBucketInput{
@@ -95,6 +96,7 @@ func TestDownloadService_Download(t *testing.T) {
 		name    string
 		args    args
 		wantErr bool
+		want    []byte
 	}{
 		{
 			name: "download",
@@ -106,6 +108,7 @@ func TestDownloadService_Download(t *testing.T) {
 				},
 			},
 			wantErr: false,
+			want:    file,
 		},
 		{
 			name: "download - key does not exist",
@@ -170,8 +173,10 @@ func TestDownloadService_Download(t *testing.T) {
 				t.Errorf("DownloadService.Download() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
+			fileFromStream := make([]byte, 0, 2<<20)
+
 			for {
-				_, err := stream.Recv()
+				ret, err := stream.Recv()
 				if err == io.EOF && tt.wantErr == false {
 					break
 				}
@@ -181,6 +186,12 @@ func TestDownloadService_Download(t *testing.T) {
 				if (err != nil) && (tt.wantErr == false) {
 					t.Errorf("DownloadService.Download() error = %v, wantErr %v", err, tt.wantErr)
 				}
+
+				fileFromStream = append(fileFromStream, ret.GetFile()...)
+			}
+
+			if bytes.Compare(fileFromStream, tt.want) != 0 && tt.wantErr == false {
+				t.Errorf("DownloadService.Download() file downloaded is different from the wanted file, wantErr %v", tt.wantErr)
 			}
 		})
 	}
