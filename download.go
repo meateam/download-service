@@ -1,12 +1,12 @@
 package main
 
 import (
-	pb "download-service/proto"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	pb "github.com/meateam/download-service/proto"
 )
 
 const (
