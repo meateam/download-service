@@ -2,15 +2,15 @@ package main
 
 import (
 	"io/ioutil"
-	pb "download-service/proto"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
+	pb "github.com/meateam/download-service/proto"
 )
 
 const (
-	partSize int64 = 5 << 20 // 5MB per part
+	partSize int64 = 5 << 20 // 5MB per part	
 )
 
 // DownloadService is a structure used for downloading files from S3
@@ -66,6 +66,7 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 		}
 
 		objectPartOutput, err := s.s3Client.GetObjectWithContext(stream.Context(), getObjectInput)
+
 		if err != nil {
 			return fmt.Errorf("failed to download file from %s/%s: %v", bucket, key, err)
 		}
@@ -77,6 +78,6 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 
 		stream.Send(&pb.DownloadResponse{File: partBytes})
 	}
-
+  
 	return nil
 }

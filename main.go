@@ -1,7 +1,6 @@
 package main
 
 import (
-	pb "download-service/proto"
 	"log"
 	"net"
 	"os"
@@ -10,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	pb "github.com/meateam/download-service/proto"
 	"google.golang.org/grpc"
 )
 
