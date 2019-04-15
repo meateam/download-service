@@ -38,7 +38,7 @@ func (m *DownloadRequest) Reset()         { *m = DownloadRequest{} }
 func (m *DownloadRequest) String() string { return proto.CompactTextString(m) }
 func (*DownloadRequest) ProtoMessage()    {}
 func (*DownloadRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_download_service_27a97b505d50aaec, []int{0}
+	return fileDescriptor_download_service_9db8895138dec550, []int{0}
 }
 func (m *DownloadRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DownloadRequest.Unmarshal(m, b)
@@ -85,7 +85,7 @@ func (m *DownloadResponse) Reset()         { *m = DownloadResponse{} }
 func (m *DownloadResponse) String() string { return proto.CompactTextString(m) }
 func (*DownloadResponse) ProtoMessage()    {}
 func (*DownloadResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_download_service_27a97b505d50aaec, []int{1}
+	return fileDescriptor_download_service_9db8895138dec550, []int{1}
 }
 func (m *DownloadResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_DownloadResponse.Unmarshal(m, b)
@@ -217,10 +217,11 @@ var _Download_serviceDesc = grpc.ServiceDesc{
 }
 
 func init() {
-	proto.RegisterFile("download_service.proto", fileDescriptor_download_service_27a97b505d50aaec)
+	proto.RegisterFile("download_service.proto", fileDescriptor_download_service_9db8895138dec550)
 }
 
-var fileDescriptor_download_service_27a97b505d50aaec = []byte{
+var fileDescriptor_download_service_9db8895138dec550 = []byte{
+
 	// 156 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xe2, 0x12, 0x4b, 0xc9, 0x2f, 0xcf,
 	0xcb, 0xc9, 0x4f, 0x4c, 0x89, 0x2f, 0x4e, 0x2d, 0x2a, 0xcb, 0x4c, 0x4e, 0xd5, 0x2b, 0x28, 0xca,
