@@ -1,6 +1,6 @@
 repoName: "meateam/download-service"
 runTests: true
-testCommand: "go test -v ./..."
+testCommand: ""
 deployUponTestSuccess: true
 deployCommand:
 deployEnvironment:
