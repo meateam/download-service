@@ -1,8 +1,8 @@
 package main
 
 import (
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	partSize int64 = 5 << 20 // 5MB per part	
+	partSize int64 = 5 << 20 // 5MB per part
 )
 
 // DownloadService is a structure used for downloading files from S3
@@ -19,7 +19,7 @@ type DownloadService struct {
 }
 
 // Download is the request to download a file from s3.
-// It recieves a req for a file.
+// It receives a req for a file.
 // Responds with a stream of the file bytes in chunks.
 func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_DownloadServer) error {
 	// fetch key and bucket from the request and check it's validity.
@@ -46,7 +46,7 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 
 	// Calculate how many parts there are to download.
 	totalParts := *fileDetails.ContentLength / partSize
-	if *fileDetails.ContentLength % partSize > 0 {
+	if *fileDetails.ContentLength%partSize > 0 {
 		totalParts++
 	}
 
@@ -59,10 +59,10 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 		}
 
 		getObjectInput := &s3.GetObjectInput{
-			Key: aws.String(key),
-			Bucket: aws.String(bucket),
+			Key:        aws.String(key),
+			Bucket:     aws.String(bucket),
 			PartNumber: aws.Int64(currentPart),
-			Range: aws.String(fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)),
+			Range:      aws.String(fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd)),
 		}
 
 		objectPartOutput, err := s.s3Client.GetObjectWithContext(stream.Context(), getObjectInput)
@@ -78,6 +78,6 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 
 		stream.Send(&pb.DownloadResponse{File: partBytes})
 	}
-  
+
 	return nil
 }
