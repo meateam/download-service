@@ -1,5 +1,8 @@
 # Download-Service
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/meateam/download-service)](https://goreportcard.com/report/github.com/meateam/download-service)
+[![GoDoc](https://godoc.org/github.com/meateam/download-service?status.svg)](https://godoc.org/github.com/meateam/download-service)
+
 S3 file Download Service
 
 ## Compile proto
