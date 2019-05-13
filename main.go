@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	pb "github.com/meateam/download-service/proto"
+	"go.elastic.co/apm/module/apmgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -35,7 +36,10 @@ func main() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer(grpc.MaxRecvMsgSize(10 << 20))
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(
+		apmgrpc.NewUnaryServerInterceptor(apmgrpc.WithRecovery()),
+	),
+		grpc.MaxRecvMsgSize(10<<20))
 	server := &DownloadService{s3Client: s3Client}
 	pb.RegisterDownloadServer(grpcServer, server)
 	grpcServer.Serve(lis)
