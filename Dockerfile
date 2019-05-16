@@ -14,9 +14,6 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates
 COPY --from=builder /go/src/app/download-service /download-service
 COPY --from=builder /bin/grpc_health_probe /bin/grpc_health_probe
-ENV S3_ACCESS_KEY=F6WUUG27HBUFSIXVZL59
-ENV S3_SECRET_KEY=BPlIUU6SX0ZxiCMo3tIpCMAUdnmkN9Eo9K42NsRR
-ENV S3_ENDPOINT=http://minio:9000
-ENTRYPOINT ./download-service
 LABEL Name=download-service Version=0.0.1
 EXPOSE 8080
+ENTRYPOINT ./download-service
