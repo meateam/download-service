@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	pb "github.com/meateam/download-service/proto"
+	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -22,14 +25,29 @@ type DownloadService struct {
 // It receives a req for a file.
 // Responds with a stream of the file bytes in chunks.
 func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_DownloadServer) error {
+	traceparent := extractTraceParent(stream.Context())
+	logger.WithContext(stream.Context()).WithFields(logrus.Fields{
+		"method":      "Download",
+		"traceparent": traceparent,
+		"request":     req,
+	}).Infof("incoming method call")
+
 	// fetch key and bucket from the request and check it's validity.
 	key := req.GetKey()
 	bucket := req.GetBucket()
 	if key == "" {
+		logger.WithContext(stream.Context()).WithFields(logrus.Fields{
+			"method":      "Download",
+			"traceparent": traceparent,
+		}).Errorf("key is required")
 		return fmt.Errorf("key is required")
 	}
 
 	if bucket == "" {
+		logger.WithContext(stream.Context()).WithFields(logrus.Fields{
+			"method":      "Download",
+			"traceparent": traceparent,
+		}).Errorf("bucket is required")
 		return fmt.Errorf("bucket is required")
 	}
 
@@ -80,4 +98,13 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 	}
 
 	return nil
+}
+
+func extractTraceParent(ctx context.Context) string {
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if values := md.Get(traceIDHeader); len(values) == 1 {
+			return values[0]
+		}
+	}
+	return ""
 }
