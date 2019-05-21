@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -11,23 +10,17 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	ilogger "github.com/meateam/download-service/logger"
 	pb "github.com/meateam/download-service/proto"
-	"github.com/meateam/elogrus/v4"
-	"github.com/olivere/elastic/v7"
 	"github.com/sirupsen/logrus"
-	"go.elastic.co/apm/module/apmgrpc"
-	"go.elastic.co/apm/module/apmhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-const (
-	traceIDHeader = apmhttp.TraceparentHeader
-)
-
 var (
-	logger = initLogger()
+	logger = ilogger.NewLogger()
 )
 
 func main() {
@@ -59,10 +52,20 @@ func main() {
 	}
 	logger.Infof("listening on port %s", tcpPort)
 
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(
-		apmgrpc.NewUnaryServerInterceptor(apmgrpc.WithRecovery()),
-	),
-		grpc.MaxRecvMsgSize(10<<20))
+	// Make sure that log statements internal to gRPC library are logged using the logrus Logger as well.
+	logrusEntry := logrus.NewEntry(logger)
+	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
+
+	// Shared options for the logger, with a custom gRPC code to log level function.
+	opts := []grpc_logrus.Option{
+		grpc_logrus.WithLevels(grpc_logrus.DefaultCodeToLevel),
+	}
+
+	grpcServer := grpc.NewServer(
+		ilogger.WithElasticsearchLogger(logrusEntry, opts...),
+		grpc.MaxRecvMsgSize(10<<20),
+	)
+
 	server := &DownloadService{s3Client: s3Client}
 	pb.RegisterDownloadServer(grpcServer, server)
 	healthServer := health.NewServer()
@@ -82,49 +85,4 @@ func main() {
 	}()
 	logger.Infof("serving grpc server on port %s", tcpPort)
 	grpcServer.Serve(lis)
-}
-
-func initLogger() *logrus.Logger {
-	log := logrus.New()
-	logLevel, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
-	if err != nil {
-		logLevel = logrus.ErrorLevel
-	}
-
-	logIndex := os.Getenv("LOG_INDEX")
-	if logIndex == "" {
-		logIndex = "KDrive"
-	}
-
-	log.SetLevel(logLevel)
-	log.SetFormatter(&logrus.JSONFormatter{})
-
-	elasticURL := os.Getenv("ELASTICSEARCH_URL")
-	if elasticURL == "" {
-		elasticURL = "http://localhost:9200"
-	}
-
-	serviceName := os.Getenv("DS_SERVICE_NAME")
-	if serviceName == "" {
-		serviceName = "download-service"
-	}
-
-	elasticClient, err := elastic.NewClient(elastic.SetURL(elasticURL))
-	if err != nil {
-		log.Panic(err)
-		return log
-	}
-
-	hook, err := elogrus.NewElasticHookWithFunc(elasticClient, serviceName, logLevel, func() string {
-		year, month, day := time.Now().Date()
-		return fmt.Sprintf("%s-%04d.%02d.%02d", logIndex, year, month, day)
-	})
-	if err != nil {
-		log.Panic(err)
-		return log
-	}
-
-	log.Hooks.Add(hook)
-	logger := log
-	return logger
 }
