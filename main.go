@@ -57,13 +57,21 @@ func main() {
 	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
 
 	// Shared options for the logger, with a custom gRPC code to log level function.
-	opts := []grpc_logrus.Option{
+	loggerOpts := []grpc_logrus.Option{
 		grpc_logrus.WithLevels(grpc_logrus.DefaultCodeToLevel),
 	}
 
-	grpcServer := grpc.NewServer(
-		ilogger.WithElasticsearchLogger(logrusEntry, opts...),
+	serverOpts := append(
+		ilogger.WithElasticsearchServerLogger(
+			logrusEntry,
+			ilogger.IgnoreMethodServerPayloadLoggingDecider("/download.Download/Download"),
+			loggerOpts...,
+		),
 		grpc.MaxRecvMsgSize(10<<20),
+	)
+
+	grpcServer := grpc.NewServer(
+		serverOpts...,
 	)
 
 	server := &DownloadService{s3Client: s3Client}
