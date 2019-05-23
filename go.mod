@@ -9,6 +9,7 @@ require (
 	github.com/meateam/elogrus/v4 v4.0.2
 	github.com/olivere/elastic/v7 v7.0.0
 	github.com/sirupsen/logrus v1.4.2
+	github.com/spf13/viper v1.3.2
 	go.elastic.co/apm/module/apmgrpc v1.3.0
 	go.elastic.co/apm/module/apmhttp v1.3.0
 	golang.org/x/net v0.0.0-20190327025741-74e053c68e29

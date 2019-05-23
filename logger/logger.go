@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -17,14 +19,33 @@ import (
 	"github.com/meateam/elogrus/v4"
 	"github.com/olivere/elastic/v7"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"go.elastic.co/apm/module/apmhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
 const (
-	traceIDHeader = apmhttp.TraceparentHeader
+	traceIDHeader          = apmhttp.TraceparentHeader
+	configLogLevel         = "log_level"
+	configLogIndex         = "log_index"
+	configElasticsearchURL = "elasticsearch_url"
+	configHostName         = "host_name"
 )
+
+func init() {
+	viper.SetDefault(configLogLevel, logrus.ErrorLevel)
+	viper.SetDefault(configLogIndex, "log")
+	viper.SetDefault(configElasticsearchURL, "http://localhost:9200")
+
+	hostName := filepath.Base(os.Args[0])
+	if runtime.GOOS == "windows" {
+		hostName = strings.TrimSuffix(hostName, filepath.Ext(hostName))
+	}
+
+	viper.SetDefault(configHostName, hostName)
+	viper.AutomaticEnv()
+}
 
 // JSONPbMarshaller is a struct used to marshal a protobuf message to JSON.
 type JSONPbMarshaller struct {
@@ -44,29 +65,16 @@ func (j *JSONPbMarshaller) MarshalJSON() ([]byte, error) {
 // NewLogger creates a `*logrus.Logger` with `elogrus` hook,
 // which logs to elasticsearch, and returns it.
 func NewLogger() *logrus.Logger {
-	log := logrus.New()
-	logLevel, err := logrus.ParseLevel(os.Getenv("LOG_LEVEL"))
+	logLevel, err := logrus.ParseLevel(viper.GetString(configLogLevel))
 	if err != nil {
 		logLevel = logrus.ErrorLevel
 	}
 
-	logIndex := strings.ToLower(os.Getenv("LOG_INDEX"))
-	if logIndex == "" {
-		logIndex = "kdrive"
-	}
-
+	log := logrus.New()
 	log.SetLevel(logLevel)
 	log.SetFormatter(&logrus.JSONFormatter{})
 
-	elasticURL := os.Getenv("ELASTICSEARCH_URL")
-	if elasticURL == "" {
-		elasticURL = "http://localhost:9200"
-	}
-
-	serviceName := os.Getenv("DS_SERVICE_NAME")
-	if serviceName == "" {
-		serviceName = "download-service"
-	}
+	elasticURL := viper.GetString(configElasticsearchURL)
 
 	elasticClient, err := elastic.NewClient(elastic.SetURL(elasticURL), elastic.SetSniff(false))
 	if err != nil {
@@ -74,7 +82,9 @@ func NewLogger() *logrus.Logger {
 		return log
 	}
 
-	hook, err := elogrus.NewElasticHookWithFunc(elasticClient, serviceName, logLevel, func() string {
+	logIndex := strings.ToLower(viper.GetString(configLogIndex))
+	hostName := viper.GetString(configHostName)
+	elasticsearchHook, err := elogrus.NewElasticHookWithFunc(elasticClient, hostName, logLevel, func() string {
 		year, month, day := time.Now().Date()
 		return fmt.Sprintf("%s-%04d.%02d.%02d", logIndex, year, month, day)
 	})
@@ -83,9 +93,9 @@ func NewLogger() *logrus.Logger {
 		return log
 	}
 
-	log.Hooks.Add(hook)
-	logger := log
-	return logger
+	// Add elasticsearch log hook.
+	log.Hooks.Add(elasticsearchHook)
+	return log
 }
 
 // WithElasticsearchServerLogger sets up a `grpc.ServerOption` to intercept streams with
@@ -100,10 +110,10 @@ func WithElasticsearchServerLogger(
 	// Make sure that log statements internal to gRPC library are logged using the logrus Logger as well.
 	grpc_logrus.ReplaceGrpcLogger(logrusEntry)
 
-	// Server stream interceptor set up for logging incoming initial requests.
-	// It automatically adds the "trace.id" from the stream's context,
-	// and logs payloads of streams. Make sure we put the `grpc_ctxtags`
-	// context before everything else.
+	// Server stream interceptor set up for logging incoming initial requests,
+	// and outgoing responses. It automatically adds the "trace.id" from
+	// the stream's context, and logs payloads of streams.
+	// Make sure we put the `grpc_ctxtags` context before everything else.
 	grpcStreamLoggingInterceptor := grpc_middleware.WithStreamServerChain(
 		// Log incoming initial requests.
 		grpc_ctxtags.StreamServerInterceptor(
@@ -131,6 +141,10 @@ func WithElasticsearchServerLogger(
 		grpc_logrus.PayloadStreamServerInterceptor(logrusEntry, serverPayloadLoggingDecider),
 	)
 
+	// Server unary interceptor set up for logging incoming requests,
+	// and outgoing responses. It automatically adds the "trace.id" from
+	// the request's context, and logs payloads of request.
+	// Make sure we put the `grpc_ctxtags` context before everything else.
 	grpcUnaryLoggingInterceptor := grpc_middleware.WithUnaryServerChain(
 		// Log incoming initial requests.
 		grpc_ctxtags.UnaryServerInterceptor(

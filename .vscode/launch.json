@@ -15,7 +15,7 @@
             "S3_SECRET_KEY": "BPlIUU6SX0ZxiCMo3tIpCMAUdnmkN9Eo9K42NsRR",
             "S3_ENDPOINT": "http://127.0.0.1:9000",
             "TCP_PORT": "8082",
-            "DS_SERVICE_NAME": "download-service",
+            "HOST_NAME": "download-service",
             "ELASTICSEARCH_URL": "http://localhost:9200",
             "LOG_INDEX": "kdrive",
             "LOG_LEVEL": "debug",
