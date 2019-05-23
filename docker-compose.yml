@@ -20,6 +20,10 @@ services:
       S3_SECRET_KEY: BPlIUU6SX0ZxiCMo3tIpCMAUdnmkN9Eo9K42NsRR
       S3_ENDPOINT: http://minio:9000
       TCP_PORT: 8080
+      HOST_NAME: download-service,
+      ELASTICSEARCH_URL: http://localhost:9200,
+      LOG_INDEX: kdrive,
+      LOG_LEVEL: debug,
       HEALTH_CHECK_INTERVAL: 5
       ELASTIC_APM_SERVER_URL: 'http://localhost:8200'
       ELASTIC_APM_SERVICE_NAME: 'download-service'

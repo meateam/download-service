@@ -10,7 +10,7 @@ services:
       MINIO_ACCESS_KEY: F6WUUG27HBUFSIXVZL59
       MINIO_SECRET_KEY: BPlIUU6SX0ZxiCMo3tIpCMAUdnmkN9Eo9K42NsRR
     command: server /data
-  upload-service:
+  download-service:
     image: download-service
     build:
       context: .
@@ -20,6 +20,19 @@ services:
       S3_SECRET_KEY: BPlIUU6SX0ZxiCMo3tIpCMAUdnmkN9Eo9K42NsRR
       S3_ENDPOINT: http://minio:9000
       TCP_PORT: 8080
+      HOST_NAME: download-service,
+      ELASTICSEARCH_URL: http://localhost:9200,
+      LOG_INDEX: kdrive,
+      LOG_LEVEL: debug,
+      HEALTH_CHECK_INTERVAL: 5
+      ELASTIC_APM_SERVER_URL: 'http://localhost:8200'
+      ELASTIC_APM_SERVICE_NAME: 'download-service'
+      ELASTIC_APM_SERVICE_VERSION: '0.1'
+      ELASTIC_APM_ENVIRONMENT: 'development'
+      ELASTIC_APM_ACTIVE: 'true'
+      ELASTIC_APM_CAPTURE_BODY: 'all'
+      ELASTIC_APM_METRICS_INTERVAL: '10s'
+      ELASTIC_APM_IGNORE_URLS: '/grpc.health.v1.Health/Check'
     ports:
       - 8080:8080
     depends_on:
