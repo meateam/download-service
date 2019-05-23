@@ -105,39 +105,56 @@ func WithElasticsearchServerLogger(
 	// and logs payloads of streams. Make sure we put the `grpc_ctxtags`
 	// context before everything else.
 	grpcStreamLoggingInterceptor := grpc_middleware.WithStreamServerChain(
-		// Logging incoming initial requests.
+		// Log incoming initial requests.
 		grpc_ctxtags.StreamServerInterceptor(
 			grpc_ctxtags.WithFieldExtractorForInitialReq(RequestExtractor(logrusEntry)),
 		),
-		// Adds the "trace.id" from the stream's context.
+		// Add the "trace.id" from the stream's context.
 		func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 			// Add logrusEntry to the context.
 			logCtx := ctxlogrus.ToContext(stream.Context(), logrusEntry)
 
 			// Extract the "trace.id" from the stream's context
-			// and add the field to the logrusEntry.
-			ctxlogrus.AddFields(logCtx, logrus.Fields{
+			traceIDFields := logrus.Fields{
 				"trace.id": ExtractTraceParent(stream.Context()),
-			})
+			}
+
+			// Overwrite the logrus entry to always log the "trace.id" field.
+			*logrusEntry = *logrusEntry.WithFields(traceIDFields)
+
+			// Add the "trace.id" field to logrusEntry.
+			ctxlogrus.AddFields(logCtx, traceIDFields)
 
 			return grpc_logrus.StreamServerInterceptor(ctxlogrus.Extract(logCtx), opts...)(srv, stream, info, handler)
 		},
-		// Logs payloads of streams.
+		// Log payload of stream requests.
 		grpc_logrus.PayloadStreamServerInterceptor(logrusEntry, serverPayloadLoggingDecider),
 	)
 
 	grpcUnaryLoggingInterceptor := grpc_middleware.WithUnaryServerChain(
-		func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-			logCtx := ctxlogrus.ToContext(ctx, logrusEntry)
-			ctxlogrus.AddFields(logCtx, logrus.Fields{
-				"trace.id": ExtractTraceParent(ctx),
-			})
-
-			return grpc_logrus.UnaryServerInterceptor(logrusEntry, opts...)(ctx, req, info, handler)
-		},
+		// Log incoming initial requests.
 		grpc_ctxtags.UnaryServerInterceptor(
 			grpc_ctxtags.WithFieldExtractorForInitialReq(grpc_ctxtags.CodeGenRequestFieldExtractor),
 		),
+		// Add the "trace.id" from the stream's context.
+		func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+			// Add logrusEntry to the context.
+			logCtx := ctxlogrus.ToContext(ctx, logrusEntry)
+
+			// Extract the "trace.id" from the stream's context.
+			traceIDFields := logrus.Fields{
+				"trace.id": ExtractTraceParent(ctx),
+			}
+
+			// Overwrite the logrus entry to always log the "trace.id" field.
+			*logrusEntry = *logrusEntry.WithFields(traceIDFields)
+
+			// Add the "trace.id" field to logrusEntry.
+			ctxlogrus.AddFields(logCtx, traceIDFields)
+
+			return grpc_logrus.UnaryServerInterceptor(logrusEntry, opts...)(ctx, req, info, handler)
+		},
+		// Log payload of unrary requests.
 		grpc_logrus.PayloadUnaryServerInterceptor(logrusEntry, serverPayloadLoggingDecider),
 	)
 
