@@ -52,7 +52,6 @@ func main() {
 	}
 	logger.Infof("listening on port %s", tcpPort)
 
-	// Make sure that log statements internal to gRPC library are logged using the logrus Logger as well.
 	logrusEntry := logrus.NewEntry(logger)
 
 	// Shared options for the logger, with a custom gRPC code to log level function.
