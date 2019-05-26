@@ -13,3 +13,4 @@
 download-service
 data
 debug
+*.log
