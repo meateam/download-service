@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	pb "github.com/meateam/download-service/proto"
-	ilogger "github.com/meateam/grpc-elasticsearch-logger"
+	ilogger "github.com/meateam/elasticsearch-logger"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -62,9 +62,10 @@ func main() {
 	}
 
 	serverOpts := append(
-		ilogger.WithElasticsearchServerLogger(
+		ilogger.ElasticsearchLoggerServerInterceptor(
 			logrusEntry,
 			ilogger.IgnoreMethodServerPayloadLoggingDecider("/download.Download/Download"),
+			ilogger.DefaultExtractInitialRequestDecider,
 			loggerOpts...,
 		),
 		grpc.MaxRecvMsgSize(10<<20),
