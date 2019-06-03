@@ -2,6 +2,7 @@ package server
 
 import (
 	"net"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -142,12 +143,14 @@ func serverLoggerInterceptor(logger *logrus.Logger) []grpc.ServerOption {
 	logrusEntry := logrus.NewEntry(logger)
 
 	ignorePayload := ilogger.IgnoreServerMethodsDecider(
-		"/download.Download/Download",
-		viper.GetString(configElasticAPMIgnoreURLS),
+		append(
+			strings.Split(viper.GetString(configElasticAPMIgnoreURLS), ","),
+			"/download.Download/Download",
+		)...,
 	)
 
 	ignoreInitialRequest := ilogger.IgnoreServerMethodsDecider(
-		viper.GetString(configElasticAPMIgnoreURLS),
+		strings.Split(viper.GetString(configElasticAPMIgnoreURLS), ",")...,
 	)
 
 	// Shared options for the logger, with a custom gRPC code to log level function.
