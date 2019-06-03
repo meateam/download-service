@@ -25,7 +25,6 @@ const bufSize = 1024 * 1024
 
 // Declaring global variables.
 var s3Endpoint string
-var newSession = session.Must(session.NewSession())
 var s3Client *s3.S3
 var lis *bufconn.Listener
 var testbucket = "testbucket"
@@ -52,7 +51,10 @@ func init() {
 	}
 
 	// Init real client.
-	newSession = session.New(s3Config)
+	newSession, err := session.NewSession(s3Config)
+	if err != nil {
+		logger.Fatalf(err.Error())
+	}
 	s3Client = s3.New(newSession)
 
 	lis = bufconn.Listen(bufSize)
@@ -66,14 +68,18 @@ func init() {
 	}()
 
 	file = make([]byte, 2<<20)
-	rand.Read(file)
+	if _, err := rand.Read(file); err != nil {
+		log.Fatalf("failed to generate file, %v", err)
+	}
 
-	s3Client.CreateBucket(&s3.CreateBucketInput{
+	if _, err := s3Client.CreateBucket(&s3.CreateBucketInput{
 		Bucket: aws.String(testbucket),
-	})
+	}); err != nil {
+		log.Fatalf("failed to create bucket, %v", err)
+	}
 
 	uploader := s3manager.NewUploaderWithClient(s3Client)
-	_, err := uploader.Upload(&s3manager.UploadInput{
+	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(testbucket),
 		Key:    aws.String(testkey),
 		Body:   bytes.NewReader(file),
@@ -83,7 +89,7 @@ func init() {
 	}
 }
 
-func bufDialer(string, time.Duration) (net.Conn, error) {
+func bufDialer(context.Context, string) (net.Conn, error) {
 	return lis.Dial()
 }
 
@@ -156,7 +162,7 @@ func TestDownloadService_Download(t *testing.T) {
 
 	// Create connection to server
 	ctx := context.Background()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithDialer(bufDialer), grpc.WithInsecure())
+	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
 	if err != nil {
 		t.Fatalf("Failed to dial bufnet: %v", err)
 	}
@@ -190,8 +196,11 @@ func TestDownloadService_Download(t *testing.T) {
 				fileFromStream = append(fileFromStream, ret.GetFile()...)
 			}
 
-			if bytes.Compare(fileFromStream, tt.want) != 0 && tt.wantErr == false {
-				t.Errorf("DownloadService.Download() file downloaded is different from the wanted file, wantErr %v", tt.wantErr)
+			if !bytes.Equal(fileFromStream, tt.want) && tt.wantErr == false {
+				t.Errorf(
+					"DownloadService.Download() file downloaded is different from the wanted file, wantErr %v",
+					tt.wantErr,
+				)
 			}
 		})
 	}

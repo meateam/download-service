@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	pb "github.com/meateam/download-service/proto"
+	ilogger "github.com/meateam/elasticsearch-logger"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -76,7 +78,13 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 			return fmt.Errorf("failed to download part %d: %v", currentPart, err)
 		}
 
-		stream.Send(&pb.DownloadResponse{File: partBytes})
+		if err := stream.Send(&pb.DownloadResponse{File: partBytes}); err != nil {
+			logger.WithFields(
+				logrus.Fields{
+					"trace.id": ilogger.ExtractTraceParent(stream.Context()),
+				},
+			).Errorf(err.Error())
+		}
 	}
 
 	return nil
