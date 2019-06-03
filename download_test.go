@@ -9,7 +9,6 @@ import (
 	"net"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -32,8 +31,8 @@ var testkey = "test.txt"
 var file = make([]byte, 2<<20)
 
 func init() {
-	// Wait until minio is up - delete it when stop using compose and start CI.
-	time.Sleep(2 * time.Second)
+	// // Wait until minio is up - delete it when stop using compose and start CI.
+	// time.Sleep(2 * time.Second)
 
 	// Fetch env vars
 	s3AccessKey := os.Getenv("S3_ACCESS_KEY")
@@ -72,10 +71,14 @@ func init() {
 		log.Fatalf("failed to generate file, %v", err)
 	}
 
-	if _, err := s3Client.CreateBucket(&s3.CreateBucketInput{
+	if err := emptyAndDeleteBucket(testbucket); err != nil {
+		log.Printf("failed to emptyAndDeleteBucket, %v", err)
+	}
+
+	if _, err = s3Client.CreateBucket(&s3.CreateBucketInput{
 		Bucket: aws.String(testbucket),
 	}); err != nil {
-		log.Fatalf("failed to create bucket, %v", err)
+		log.Printf("failed to create bucket, %v", err)
 	}
 
 	uploader := s3manager.NewUploaderWithClient(s3Client)
@@ -204,4 +207,56 @@ func TestDownloadService_Download(t *testing.T) {
 			}
 		})
 	}
+}
+
+//EmptyBucket empties the Amazon S3 bucket and deletes it.
+func emptyAndDeleteBucket(bucket string) error {
+	log.Print("removing objects from S3 bucket : ", bucket)
+	params := &s3.ListObjectsInput{
+		Bucket: aws.String(bucket),
+	}
+	for {
+		//Requesting for batch of objects from s3 bucket
+		objects, err := s3Client.ListObjects(params)
+		if err != nil {
+			break
+		}
+		//Checks if the bucket is already empty
+		if len((*objects).Contents) == 0 {
+			log.Print("Bucket is already empty")
+			return nil
+		}
+		log.Print("First object in batch | ", *(objects.Contents[0].Key))
+
+		//creating an array of pointers of ObjectIdentifier
+		objectsToDelete := make([]*s3.ObjectIdentifier, 0, 1000)
+		for _, object := range (*objects).Contents {
+			obj := s3.ObjectIdentifier{
+				Key: object.Key,
+			}
+			objectsToDelete = append(objectsToDelete, &obj)
+		}
+		//Creating JSON payload for bulk delete
+		deleteArray := s3.Delete{Objects: objectsToDelete}
+		deleteParams := &s3.DeleteObjectsInput{
+			Bucket: aws.String(bucket),
+			Delete: &deleteArray,
+		}
+		//Running the Bulk delete job (limit 1000)
+		_, err = s3Client.DeleteObjects(deleteParams)
+		if err != nil {
+			return err
+		}
+		if *(*objects).IsTruncated { //if there are more objects in the bucket, IsTruncated = true
+			params.Marker = (*deleteParams).Delete.Objects[len((*deleteParams).Delete.Objects)-1].Key
+			log.Print("Requesting next batch | ", *(params.Marker))
+		} else { //if all objects in the bucket have been cleaned up.
+			break
+		}
+	}
+	log.Print("Emptied S3 bucket : ", bucket)
+	if _, err := s3Client.DeleteBucket(&s3.DeleteBucketInput{Bucket: aws.String(bucket)}); err != nil {
+		log.Printf("failed to DeleteBucket, %v", err)
+	}
+	return nil
 }
