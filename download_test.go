@@ -160,23 +160,25 @@ func TestDownloadService_Download(t *testing.T) {
 		},
 	}
 
-	// Create connection to server
-	ctx := context.Background()
-	conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
-	if err != nil {
-		t.Fatalf("Failed to dial bufnet: %v", err)
-	}
-	defer conn.Close()
-
-	client := pb.NewDownloadClient(conn)
-
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			// Create connection to server
+			ctx := context.Background()
+			conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+			if err != nil {
+				t.Fatalf("failed to dial bufnet: %v", err)
+			}
+			defer conn.Close()
+
+			t.Parallel()
+
+			client := pb.NewDownloadClient(conn)
 			stream, err := client.Download(tt.args.ctx, tt.args.req)
 
-			// unanticipated error - isn't related to tt.wantErr
+			// Unanticipated error - isn't related to tt.wantErr
 			if err != nil {
-				t.Errorf("DownloadService.Download() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("DownloadService.Download() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			fileFromStream := make([]byte, 0, 2<<20)
@@ -186,9 +188,11 @@ func TestDownloadService_Download(t *testing.T) {
 				if err == io.EOF && tt.wantErr == false {
 					break
 				}
+
 				if (err != nil) && (tt.wantErr == true) {
 					break
 				}
+
 				if (err != nil) && (tt.wantErr == false) {
 					t.Errorf("DownloadService.Download() error = %v, wantErr %v", err, tt.wantErr)
 				}
