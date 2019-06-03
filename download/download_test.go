@@ -1,4 +1,4 @@
-package main
+package download
 
 import (
 	"bytes"
@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	pb "github.com/meateam/download-service/proto"
+	ilogger "github.com/meateam/elasticsearch-logger"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -23,6 +24,7 @@ import (
 const bufSize = 1024 * 1024
 
 // Declaring global variables.
+var logger = ilogger.NewLogger()
 var s3Endpoint string
 var s3Client *s3.S3
 var lis *bufconn.Listener
@@ -51,12 +53,14 @@ func init() {
 	if err != nil {
 		logger.Fatalf(err.Error())
 	}
+
 	s3Client = s3.New(newSession)
 
 	lis = bufconn.Listen(bufSize)
 	grpcServer := grpc.NewServer(grpc.MaxRecvMsgSize(10 << 20))
-	server := DownloadService{s3Client: s3Client}
+	server := NewService(s3Client, logger)
 	pb.RegisterDownloadServer(grpcServer, server)
+
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
 			log.Fatalf("server exited with error: %v", err)

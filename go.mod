@@ -12,4 +12,10 @@ require (
 	google.golang.org/grpc v1.21.0
 )
 
+replace github.com/meateam/download-service/proto => ./proto
+
+replace github.com/meateam/download-service/download => ./download
+
+replace github.com/meateam/download-service/server => ./server
+
 replace go.elastic.co/apm/module/apmgrpc => github.com/omrishtam/apm-agent-go/module/apmgrpc v1.3.1-0.20190514172539-1b2e35db8668
