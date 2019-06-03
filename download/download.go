@@ -1,4 +1,4 @@
-package main
+package download
 
 import (
 	"fmt"
@@ -7,22 +7,35 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/s3"
 	pb "github.com/meateam/download-service/proto"
+	ilogger "github.com/meateam/elasticsearch-logger"
+	"github.com/sirupsen/logrus"
 )
 
 const (
 	partSize int64 = 5 << 20 // 5MB per part
 )
 
-// DownloadService is a structure used for downloading files from S3
-type DownloadService struct {
+// Service is a structure used for downloading files from S3.
+type Service struct {
 	s3Client *s3.S3
+	logger   *logrus.Logger
 }
 
-// Download is the request to download a file from s3.
+// NewService creates a Service and returns it.
+func NewService(s3Client *s3.S3, logger *logrus.Logger) *Service {
+	return &Service{s3Client: s3Client, logger: logger}
+}
+
+// GetS3Client returns the internal s3 client.
+func (s Service) GetS3Client() *s3.S3 {
+	return s.s3Client
+}
+
+// Download is the request to download a file from S3.
 // It receives a req for a file.
 // Responds with a stream of the file bytes in chunks.
-func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_DownloadServer) error {
-	// fetch key and bucket from the request and check it's validity.
+func (s Service) Download(req *pb.DownloadRequest, stream pb.Download_DownloadServer) error {
+	// Fetch key and bucket from the request and check it's validity.
 	key := req.GetKey()
 	bucket := req.GetBucket()
 	if key == "" {
@@ -52,6 +65,7 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 
 	// Iterate over all of the parts, download each part and stream it to the client.
 	for currentPart := int64(0); currentPart < totalParts; currentPart++ {
+		// Calculate current part bytes range to download.
 		rangeStart := currentPart * partSize
 		rangeEnd := rangeStart + partSize - 1
 		if rangeEnd > *fileDetails.ContentLength {
@@ -76,7 +90,15 @@ func (s DownloadService) Download(req *pb.DownloadRequest, stream pb.Download_Do
 			return fmt.Errorf("failed to download part %d: %v", currentPart, err)
 		}
 
-		stream.Send(&pb.DownloadResponse{File: partBytes})
+		if err := stream.Send(&pb.DownloadResponse{File: partBytes}); err != nil {
+			s.logger.WithFields(
+				logrus.Fields{
+					"trace.id": ilogger.ExtractTraceParent(stream.Context()),
+				},
+			).Errorf(err.Error())
+
+			return err
+		}
 	}
 
 	return nil
