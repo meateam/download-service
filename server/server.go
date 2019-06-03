@@ -2,8 +2,6 @@ package server
 
 import (
 	"net"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -15,10 +13,32 @@ import (
 	pb "github.com/meateam/download-service/proto"
 	ilogger "github.com/meateam/elasticsearch-logger"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
+
+const (
+	configPort                 = "tcp_port"
+	configHealthCheckInterval  = "health_check_interval"
+	configElasticAPMIgnoreURLS = "elastic_apm_ignore_urls"
+	configS3Endpoint           = "s3_endpoint"
+	configS3Token              = "s3_token"
+	configS3AccessKey          = "s3_access_key"
+	configS3SecretKey          = "s3_secret_key"
+)
+
+func init() {
+	viper.SetDefault(configPort, "8080")
+	viper.SetDefault(configHealthCheckInterval, 3)
+	viper.SetDefault(configElasticAPMIgnoreURLS, "/grpc.health.v1.Health/Check")
+	viper.SetDefault(configS3Endpoint, "http://localhost:9000")
+	viper.SetDefault(configS3Token, "")
+	viper.SetDefault(configS3AccessKey, "")
+	viper.SetDefault(configS3SecretKey, "")
+	viper.AutomaticEnv()
+}
 
 // DownloadServer is a structure that holds the download server.
 type DownloadServer struct {
@@ -56,17 +76,11 @@ func (s DownloadServer) Serve() {
 // `S3_ENDPOINT`: S3 endpoint of s3 backend to connect to.
 // `TCP_PORT`: TCO port on which the grpc server would serve on.
 func NewServer() *DownloadServer {
-	logger := ilogger.NewLogger()
-	interval := os.Getenv("HEALTH_CHECK_INTERVAL")
-	healthCheckInterval, err := strconv.Atoi(interval)
-	if err != nil {
-		healthCheckInterval = 3
-	}
-	s3AccessKey := os.Getenv("S3_ACCESS_KEY")
-	s3SecretKey := os.Getenv("S3_SECRET_KEY")
-	s3Endpoint := os.Getenv("S3_ENDPOINT")
-	tcpPort := os.Getenv("TCP_PORT")
-	s3Token := ""
+	// Configuration variables
+	s3AccessKey := viper.GetString(configS3AccessKey)
+	s3SecretKey := viper.GetString(configS3SecretKey)
+	s3Endpoint := viper.GetString(configS3Endpoint)
+	s3Token := viper.GetString(configS3Token)
 
 	// Configure to use S3 Server
 	s3Config := &aws.Config{
@@ -76,6 +90,8 @@ func NewServer() *DownloadServer {
 		DisableSSL:       aws.Bool(true),
 		S3ForcePathStyle: aws.Bool(true),
 	}
+
+	logger := ilogger.NewLogger()
 
 	// Open a session to s3.
 	newSession, err := session.NewSession(s3Config)
@@ -109,8 +125,8 @@ func NewServer() *DownloadServer {
 	downloadServer := &DownloadServer{
 		Server:              grpcServer,
 		logger:              logger,
-		tcpPort:             tcpPort,
-		healthCheckInterval: healthCheckInterval,
+		tcpPort:             viper.GetString(configPort),
+		healthCheckInterval: viper.GetInt(configHealthCheckInterval),
 		downloadService:     downloadService,
 	}
 
@@ -127,11 +143,11 @@ func serverLoggerInterceptor(logger *logrus.Logger) []grpc.ServerOption {
 
 	ignorePayload := ilogger.IgnoreServerMethodsDecider(
 		"/download.Download/Download",
-		os.Getenv("ELASTIC_APM_IGNORE_URLS"),
+		viper.GetString(configElasticAPMIgnoreURLS),
 	)
 
 	ignoreInitialRequest := ilogger.IgnoreServerMethodsDecider(
-		os.Getenv("ELASTIC_APM_IGNORE_URLS"),
+		viper.GetString(configElasticAPMIgnoreURLS),
 	)
 
 	// Shared options for the logger, with a custom gRPC code to log level function.
