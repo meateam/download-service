@@ -52,7 +52,8 @@ func (s Service) Download(req *pb.DownloadRequest, stream pb.Download_DownloadSe
 		&s3.HeadObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
-		})
+		},
+	)
 	if err != nil {
 		return fmt.Errorf("failed to download file from %s/%s: %v", bucket, key, err)
 	}
