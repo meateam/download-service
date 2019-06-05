@@ -2,6 +2,7 @@ package server
 
 import (
 	"net"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -49,20 +50,32 @@ type DownloadServer struct {
 	downloadService     *download.Service
 }
 
-// Serve accepts incoming connections on the self created listener, creating a new
+// GetService returns a copy of the underlying download service.
+func (s *DownloadServer) GetService() download.Service {
+	return *s.downloadService
+}
+
+// Serve accepts incoming connections on the listener `lis`, creating a new
 // ServerTransport and service goroutine for each. The service goroutines
 // read gRPC requests and then call the registered handlers to reply to them.
-// Serve returns when lis.Accept fails with fatal errors.
-// The listener will be closed when this method returns.
-// Serve will log.Fatal a non-nil error unless Stop or GracefulStop is called.
-func (s DownloadServer) Serve() {
-	lis, err := net.Listen("tcp", ":"+s.tcpPort)
-	if err != nil {
-		s.logger.Fatalf("failed to listen: %v", err)
+// Serve returns when `lis.Accept` fails with fatal errors. `lis` will be closed when
+// this method returns.
+// If `lis` is nil then Serve creates a `net.Listener` with "tcp" network listening
+// on the configured `TCP_PORT`, which defaults to "8080".
+// Serve will return a non-nil error unless Stop or GracefulStop is called.
+func (s DownloadServer) Serve(lis net.Listener) {
+	listener := lis
+	if lis == nil {
+		l, err := net.Listen("tcp", ":"+s.tcpPort)
+		if err != nil {
+			s.logger.Fatalf("failed to listen: %v", err)
+		}
+
+		listener = l
 	}
 
 	s.logger.Infof("listening and serving grpc server on port %s", s.tcpPort)
-	if err := s.Server.Serve(lis); err != nil {
+	if err := s.Server.Serve(listener); err != nil {
 		s.logger.Fatalf(err.Error())
 	}
 }
@@ -74,7 +87,7 @@ func (s DownloadServer) Serve() {
 // `S3_ACCESS_KEY`: S3 accress key to connect with s3 backend.
 // `S3_SECRET_KEY`: S3 secret key to connect with s3 backend.
 // `S3_ENDPOINT`: S3 endpoint of s3 backend to connect to.
-// `TCP_PORT`: TCO port on which the grpc server would serve on.
+// `TCP_PORT`: TCP port on which the grpc server would serve on.
 func NewServer() *DownloadServer {
 	// Configuration variables
 	s3AccessKey := viper.GetString(configS3AccessKey)
@@ -142,12 +155,14 @@ func serverLoggerInterceptor(logger *logrus.Logger) []grpc.ServerOption {
 	logrusEntry := logrus.NewEntry(logger)
 
 	ignorePayload := ilogger.IgnoreServerMethodsDecider(
-		"/download.Download/Download",
-		viper.GetString(configElasticAPMIgnoreURLS),
+		append(
+			strings.Split(viper.GetString(configElasticAPMIgnoreURLS), ","),
+			"/download.Download/Download",
+		)...,
 	)
 
 	ignoreInitialRequest := ilogger.IgnoreServerMethodsDecider(
-		viper.GetString(configElasticAPMIgnoreURLS),
+		strings.Split(viper.GetString(configElasticAPMIgnoreURLS), ",")...,
 	)
 
 	// Shared options for the logger, with a custom gRPC code to log level function.
