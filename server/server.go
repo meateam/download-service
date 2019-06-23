@@ -94,6 +94,7 @@ func (s DownloadServer) Serve(lis net.Listener) {
 // `S3_TOKEN`: S3 token of s3 backend to connect to.
 // `S3_REGION`: S3 ergion of s3 backend to connect to.
 // `S3_SSL`: Enable or Disable SSL on S3 connection.
+// `TCP_PORT`: TCP port on which the grpc server would serve on.
 func NewServer() *DownloadServer {
 	// Configuration variables
 	s3AccessKey := viper.GetString(configS3AccessKey)
