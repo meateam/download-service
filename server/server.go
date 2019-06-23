@@ -95,7 +95,7 @@ func (s DownloadServer) Serve(lis net.Listener) {
 // `S3_REGION`: S3 ergion of s3 backend to connect to.
 // `S3_SSL`: Enable or Disable SSL on S3 connection.
 // `TCP_PORT`: TCP port on which the grpc server would serve on.
-func NewServer() *DownloadServer {
+func NewServer(logger *logrus.Logger) *DownloadServer {
 	// Configuration variables
 	s3AccessKey := viper.GetString(configS3AccessKey)
 	s3SecretKey := viper.GetString(configS3SecretKey)
@@ -113,7 +113,10 @@ func NewServer() *DownloadServer {
 		S3ForcePathStyle: aws.Bool(true),
 	}
 
-	logger := ilogger.NewLogger()
+	// If no logger is given, create a new default logger for the server.
+	if logger == nil {
+		logger = ilogger.NewLogger()
+	}
 
 	// Open a session to s3.
 	newSession, err := session.NewSession(s3Config)
