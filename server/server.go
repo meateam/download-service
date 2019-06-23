@@ -28,6 +28,7 @@ const (
 	configS3Token              = "s3_token"
 	configS3AccessKey          = "s3_access_key"
 	configS3SecretKey          = "s3_secret_key"
+	configS3Region             = "s3_region"
 )
 
 func init() {
@@ -38,6 +39,7 @@ func init() {
 	viper.SetDefault(configS3Token, "")
 	viper.SetDefault(configS3AccessKey, "")
 	viper.SetDefault(configS3SecretKey, "")
+	viper.SetDefault(configS3Region, "us-east-1")
 	viper.AutomaticEnv()
 }
 
@@ -94,12 +96,13 @@ func NewServer() *DownloadServer {
 	s3SecretKey := viper.GetString(configS3SecretKey)
 	s3Endpoint := viper.GetString(configS3Endpoint)
 	s3Token := viper.GetString(configS3Token)
+	s3Region := viper.GetString(configS3Region)
 
 	// Configure to use S3 Server
 	s3Config := &aws.Config{
 		Credentials:      credentials.NewStaticCredentials(s3AccessKey, s3SecretKey, s3Token),
 		Endpoint:         aws.String(s3Endpoint),
-		Region:           aws.String("eu-east-1"),
+		Region:           aws.String(s3Region),
 		DisableSSL:       aws.Bool(true),
 		S3ForcePathStyle: aws.Bool(true),
 	}
