@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"testing"
@@ -14,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	pb "github.com/meateam/download-service/proto"
 	"github.com/meateam/download-service/server"
-	ilogger "github.com/meateam/elasticsearch-logger"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -22,16 +23,22 @@ import (
 const bufSize = 1024 * 1024
 
 // Declaring global variables.
-var logger = ilogger.NewLogger()
-var lis *bufconn.Listener
-var s3Client *s3.S3
-var testbucket = "testbucket"
-var testkey = "test.txt"
-var file = make([]byte, 2<<20)
+var (
+	logger     = logrus.New()
+	lis        *bufconn.Listener
+	s3Client   *s3.S3
+	testbucket = "testbucket"
+	testkey    = "test.txt"
+	file       = make([]byte, 2<<20)
+)
 
 func init() {
 	lis = bufconn.Listen(bufSize)
-	downloadServer := server.NewServer()
+
+	// Disable log output.
+	logger.SetOutput(ioutil.Discard)
+	downloadServer := server.NewServer(logger)
+
 	s3Client = downloadServer.GetService().GetS3Client()
 	go func() {
 		downloadServer.Serve(lis)
