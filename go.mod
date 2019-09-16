@@ -14,8 +14,6 @@ require (
 	google.golang.org/grpc v1.23.1
 )
 
-replace git.apache.org/thrift.git => github.com/apache/thrift v0.12.0
-
 replace github.com/meateam/download-service/proto => ./proto
 
 replace github.com/meateam/download-service/download => ./download
