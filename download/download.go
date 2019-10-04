@@ -13,7 +13,7 @@ import (
 
 const (
 	// PartSize is the number of bytes that a object part has, currently 5MB per part.
-	PartSize int64 = 5 << 20
+	PartSize = 5 << 20
 )
 
 // ErrBufferLength is the error returned by StreamReadCloser.Read when len(p) <= PartSize.
