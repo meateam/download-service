@@ -24,7 +24,7 @@ import (
 
 const (
 	configPort                 = "tcp_port"
-	configHealthCheckInterval  = "health_check_interval"
+	configHealthCheckInterval  = "ds_health_check_interval"
 	configElasticAPMIgnoreURLS = "elastic_apm_ignore_urls"
 	configS3Endpoint           = "s3_endpoint"
 	configS3Token              = "s3_token"
