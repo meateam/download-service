@@ -32,7 +32,6 @@ func NewStreamReadCloser(stream pb.Download_DownloadClient) StreamReadCloser {
 // Read implements io.Reader to read object's bytes into p,
 // len(p) MUST be >= PartSize, otherwise Read wouldn't read the chunk into p,
 // Read doesn't call r.stream.Recv() unless len(p) >= PartSize.
-// Read reads bytes into p with the bytes from the chunk recieved from r.stream.Recv().
 // If Read would've read the chunk into p where len(p) < PartSize,
 // it would read incomplete object bytes into p and the reader would
 // miss bytes from the object stream.
