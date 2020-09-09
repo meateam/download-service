@@ -28,14 +28,14 @@ pipeline {
           }
          }
         }
-          stage('login to azure container registry') {
+        stage('login to azure container registry') {
             steps{  
               withCredentials([usernamePassword(credentialsId:'Drive_ACR',usernameVariable: 'USER', passwordVariable: 'PASS')]) {
                 sh "docker login  drivehub.azurecr.io -u ${USER} -p ${PASS}"
               }
             }
-          }  
-          stage('build dockerfile of system only for master and develop and push them to acr') {
+        }  
+        stage('build dockerfile of system only for master and develop and push them to acr') {
             when {
               anyOf {
                  branch 'master'; branch 'develop'
@@ -53,6 +53,6 @@ pipeline {
                 }
               } 
             }
-          }      
+        }      
     }   
 }
